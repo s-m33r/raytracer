@@ -1,19 +1,59 @@
 import numpy as np
 
 
+def grayscale_value(distance, tmin, tmax):
+    # Clamp the distance between the minimum and maximum values
+    clamped_distance = max(tmin, min(tmax, distance))
+
+    # Linearly interpolate the grayscale value based on the distance
+    grayscale_value = 255 - ((clamped_distance - tmin) / (tmax - tmin)) * 255
+
+    # Round and clamp to the valid range
+    grayscale_value = int(round(grayscale_value))
+    grayscale_value = max(0, min(255, grayscale_value))
+
+    return grayscale_value
+
+
 class Sphere:
     def __init__(self, idt, position, radius):
         self.idt = idt
         self.position = position
         self.radius = radius
 
-    def hit(self, origin, direction):
-        a = np.dot(direction, direction)
-        b = np.dot(2 * direction, origin - self.position)
-        c = np.dot(origin - self.position, origin - self.position) - self.radius**2
+    def hit(self, origin, direction) -> float | None:
+        # vector from ray origin to sphere center
+        oc = self.position - origin
 
-        discriminant = b**2 - 4 * a * c
-        return discriminant >= 0
+        # projection of this vector onto ray direction
+        proj = np.dot(oc, direction)
+
+        # squared distance from ray to sphere center
+        dist_squared = np.dot(oc, oc) - proj**2
+
+        # If the ray misses the sphere, return None
+        if dist_squared > self.radius**2:
+            return None
+
+        # Calculate the distance to the intersection point(s)
+        dist_to_intersection = (self.radius**2 - dist_squared) ** 0.5
+
+        # Calculate the intersection point(s)
+        intersection_1 = origin + direction * (proj - dist_to_intersection)
+        intersection_2 = origin + direction * (proj + dist_to_intersection)
+
+        # Calculate the distances to the intersection points
+        distance_1 = np.linalg.norm(intersection_1 - origin).astype(float)
+        distance_2 = np.linalg.norm(intersection_2 - origin).astype(float)
+
+        return min(distance_1, distance_2)
+
+        # a = np.dot(direction, direction)
+        # b = np.dot(2 * direction, origin - self.position)
+        # c = np.dot(origin - self.position, origin - self.position) - self.radius**2
+
+        # discriminant = b**2 - 4 * a * c
+        # return discriminant >= 0
 
 
 class Triangle:
@@ -138,16 +178,12 @@ class Camera:
                 # calculate intersection points
                 for obj in scene:
 
-                    if obj.hit(self.position, rayDirection):
-                        print("255 255 255", end=" ")
-                        continue
-
-                    print("0 0 0", end=" ")
-
-                    # pixel brightness
-                    # d = np.linalg.norm(intersection - self.position)
-                    # grayValue = 255 - d
-                    # print(grayValue, grayValue, grayValue, end=" ")
+                    d = obj.hit(self.position, rayDirection)
+                    if d:
+                        grayValue = grayscale_value(d, abs(pixelPos[2]), 50)
+                        print(grayValue, grayValue, grayValue, end=" ")
+                    else:
+                        print("0 0 0", end=" ")
 
             print("\n")
 
